@@ -2,78 +2,62 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Topic;
+use App\Http\Requests\Topic\StoreTopicRequest;
+use App\Http\Requests\Topic\UpdateTopicRequest;
+use App\Services\TopicService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class TopicController extends Controller
 {
-    public function index()
+    protected $topicService;
+
+    public function __construct(TopicService $topicService)
     {
-        $topics = Topic::with(['user', 'category'])->latest()->paginate(10);
+        $this->topicService = $topicService;
+    }
+
+    public function index(Request $request)
+    {
+        $topics = $this->topicService->listTopics($request->all());
         return response()->json($topics);
     }
 
-    public function store(Request $request)
+    public function store(StoreTopicRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'category_id' => 'required|exists:categories,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
-
-        $topic = Topic::create([
-            'title' => $request->title,
-            'content' => $request->content,
-            'category_id' => $request->category_id,
-            'user_id' => auth('api')->id(),
-        ]);
-
-        return response()->json($topic->load(['user', 'category']), 201);
+        $topic = $this->topicService->createTopic($request->validated(), auth('api')->id());
+        return response()->json($topic, 201);
     }
 
     public function show($uuid)
     {
-        $topic = Topic::with(['user', 'category'])->where('uuid', $uuid)->firstOrFail();
+        $topic = $this->topicService->getTopicByUuid($uuid);
         return response()->json($topic);
     }
 
-    public function update(Request $request, $uuid)
+    public function update(UpdateTopicRequest $request, $uuid)
     {
-        $topic = Topic::where('uuid', $uuid)->firstOrFail();
+        $topic = $this->topicService->updateTopic($uuid, $request->validated(), auth('api')->id());
 
-        if ($topic->user_id !== auth('api')->id()) {
+        if ($topic === null) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $topic->update($request->only(['title', 'content', 'category_id']));
-
-        return response()->json($topic->load(['user', 'category']));
+        return response()->json($topic);
     }
 
     public function destroy($uuid)
     {
-        $topic = Topic::where('uuid', $uuid)->firstOrFail();
+        $deleted = $this->topicService->deleteTopic($uuid, auth('api')->id());
 
-        if ($topic->user_id !== auth('api')->id()) {
+        if (!$deleted) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
-
-        $topic->delete();
 
         return response()->json(['message' => 'Topic deleted']);
     }
 
     public function stats()
     {
-        return response()->json([
-            'topics_count' => Topic::count(),
-            'users_count' => \App\Models\User::count(),
-            'categories_count' => \App\Models\Category::count(),
-        ]);
+        return response()->json($this->topicService->getStats());
     }
 }

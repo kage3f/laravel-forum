@@ -1,12 +1,19 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, usePage, router } from '@inertiajs/vue3';
 import { computed, ref, onMounted } from 'vue';
 
 const page = usePage();
 const user = ref(JSON.parse(localStorage.getItem('user')));
+const searchQuery = ref('');
 
 const isActive = (path) => {
   return page.url === path || page.url.startsWith(path + '/');
+};
+
+const handleSearch = () => {
+    if (searchQuery.value.trim()) {
+        router.visit(`/topicos?search=${encodeURIComponent(searchQuery.value.trim())}`);
+    }
 };
 
 onMounted(() => {
@@ -34,6 +41,8 @@ onMounted(() => {
             <span class="material-symbols-outlined text-[20px]">search</span>
           </div>
           <input 
+            v-model="searchQuery"
+            @keyup.enter="handleSearch"
             class="block w-full rounded-lg border-0 bg-[#233648] py-1.5 pl-10 pr-3 text-white placeholder:text-text-secondary focus:ring-2 focus:ring-primary sm:text-sm sm:leading-6 transition-all outline-none" 
             placeholder="Pesquisar tópicos, perguntas, membros..." 
             type="text"

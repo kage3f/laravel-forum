@@ -2,55 +2,35 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    protected $authService;
+
+    public function __construct(AuthService $authService)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
-
-        $user = User::create([
-            'name' => $request->name,
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = JWTAuth::fromUser($user);
-
-        return response()->json(compact('user', 'token'), 201);
+        $this->authService = $authService;
     }
 
-    public function login(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $credentials = $request->only('email', 'password');
+        $result = $this->authService->register($request->validated());
+        return response()->json($result, 201);
+    }
 
-        // Check if it's email or username
-        if (filter_var($credentials['email'], FILTER_VALIDATE_EMAIL)) {
-            $authCredentials = ['email' => $credentials['email'], 'password' => $credentials['password']];
-        } else {
-            $authCredentials = ['username' => $credentials['email'], 'password' => $credentials['password']];
-        }
+    public function login(LoginRequest $request)
+    {
+        $result = $this->authService->login($request->validated());
 
-        if (!$token = auth('api')->attempt($authCredentials)) {
+        if (!$result) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        return $this->respondWithToken($token);
+        return response()->json($result);
     }
 
     public function me()
@@ -60,23 +40,12 @@ class AuthController extends Controller
 
     public function logout()
     {
-        auth('api')->logout();
-
+        $this->authService->logout();
         return response()->json(['message' => 'Successfully logged out']);
     }
 
     public function refresh()
     {
-        return $this->respondWithToken(auth('api')->refresh());
-    }
-
-    protected function respondWithToken($token)
-    {
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * 60,
-            'user' => auth('api')->user()
-        ]);
+        return response()->json($this->authService->refresh());
     }
 }

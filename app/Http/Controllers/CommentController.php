@@ -2,38 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Comment;
-use App\Models\Topic;
+use App\Http\Requests\Comment\StoreCommentRequest;
+use App\Services\CommentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
-    public function store(Request $request, $topicUuid)
+    protected $commentService;
+
+    public function __construct(CommentService $commentService)
     {
-        $topic = Topic::where('uuid', $topicUuid)->firstOrFail();
+        $this->commentService = $commentService;
+    }
 
-        $validator = Validator::make($request->all(), [
-            'content' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
-
-        $comment = Comment::create([
-            'content' => $request->content,
-            'user_id' => auth('api')->id(),
-            'topic_id' => $topic->id,
-        ]);
-
-        return response()->json($comment->load('user'), 201);
+    public function store(StoreCommentRequest $request, $topicUuid)
+    {
+        $comment = $this->commentService->createComment($topicUuid, $request->validated(), auth('api')->id());
+        return response()->json($comment, 201);
     }
 
     public function index($topicUuid)
     {
-        $topic = Topic::where('uuid', $topicUuid)->firstOrFail();
-        $comments = $topic->comments()->with('user')->latest()->get();
+        $comments = $this->commentService->listCommentsByTopic($topicUuid);
         return response()->json($comments);
     }
 }

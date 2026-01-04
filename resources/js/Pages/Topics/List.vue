@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 import axios from 'axios';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 
 const breadcrumbs = [
   { label: 'Tópicos', link: '/topicos' },
@@ -13,10 +13,14 @@ const topics = ref([]);
 const categories = ref([]);
 const loading = ref(true);
 
-onMounted(async () => {
+const fetchData = async () => {
+    loading.value = true;
+    const urlParams = new URLSearchParams(window.location.search);
+    const search = urlParams.get('search');
+    
     try {
         const [topicsRes, categoriesRes] = await Promise.all([
-            axios.get('/api/topics'),
+            axios.get('/api/topics', { params: { search } }),
             axios.get('/api/categories')
         ]);
         topics.value = topicsRes.data.data || [];
@@ -26,7 +30,12 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
-});
+};
+
+onMounted(fetchData);
+
+// Watch for URL changes (e.g. when searching from navbar while on topics page)
+watch(() => usePage().url, fetchData);
 
 const formatTime = (dateString) => {
     const date = new Date(dateString);
@@ -85,9 +94,15 @@ const formatTime = (dateString) => {
                   </div>
                 </div>
                 <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 sm:gap-1 pl-16 sm:pl-0 border-t sm:border-t-0 border-[#233648] pt-3 sm:pt-0 mt-2 sm:mt-0 shrink-0 min-w-[140px]">
-                  <div class="flex items-center gap-1.5 text-text-secondary text-xs">
-                      <span class="material-symbols-outlined text-[14px]">schedule</span>
-                      <span>{{ formatTime(topic.created_at) }}</span>
+                  <div class="flex items-center gap-3 text-text-secondary text-xs">
+                      <div class="flex items-center gap-1">
+                          <span class="material-symbols-outlined text-[14px]">chat_bubble</span>
+                          <span>{{ topic.comments_count || 0 }}</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                          <span class="material-symbols-outlined text-[14px]">schedule</span>
+                          <span>{{ formatTime(topic.created_at) }}</span>
+                      </div>
                   </div>
                 </div>
             </div>

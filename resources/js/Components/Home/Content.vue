@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 
@@ -8,12 +8,18 @@ const stats = ref(null);
 const categories = ref([]);
 const loading = ref(true);
 const activeTab = ref('recentes');
+const selectedCategory = ref('');
 
 const fetchData = async () => {
     loading.value = true;
     try {
         const [topicsRes, statsRes, categoriesRes] = await Promise.all([
-            axios.get('/api/topics'),
+            axios.get('/api/topics', {
+                params: {
+                    sort: activeTab.value,
+                    category_id: selectedCategory.value
+                }
+            }),
             axios.get('/api/stats'),
             axios.get('/api/categories')
         ]);
@@ -28,6 +34,8 @@ const fetchData = async () => {
 };
 
 onMounted(fetchData);
+
+watch([activeTab, selectedCategory], fetchData);
 
 const formatTime = (dateString) => {
     const date = new Date(dateString);
@@ -69,7 +77,10 @@ const formatTime = (dateString) => {
                 </div>
                 <div class="flex items-center gap-2 pb-2">
                     <span class="text-xs font-medium text-text-secondary hidden sm:block">Filtrar por:</span>
-                    <select class="bg-transparent text-sm font-medium text-white border-none focus:ring-0 cursor-pointer p-0 pr-6">
+                    <select 
+                        v-model="selectedCategory"
+                        class="bg-transparent text-sm font-medium text-white border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                    >
                         <option value="">Todas as categorias</option>
                         <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                     </select>
@@ -111,7 +122,7 @@ const formatTime = (dateString) => {
                     <div class="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-1 text-xs text-text-secondary border-t sm:border-t-0 border-[#324d67] pt-3 sm:pt-0 mt-2 sm:mt-0">
                         <div class="flex items-center gap-1" title="Respostas">
                             <span class="material-symbols-outlined" :style="{fontSize: '16px'}">chat_bubble</span>
-                            <span class="font-bold text-slate-300">0</span>
+                            <span class="font-bold text-slate-300">{{ topic.comments_count || 0 }}</span>
                         </div>
                         <div class="flex items-center gap-1" title="Visualizações">
                             <span class="material-symbols-outlined" :style="{fontSize: '16px'}">visibility</span>
