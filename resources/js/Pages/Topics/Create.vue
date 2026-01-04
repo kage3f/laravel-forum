@@ -21,7 +21,44 @@ const form = reactive({
     content: '',
 });
 
+// Função auxiliar para pegar o token
+const getToken = () => {
+    return localStorage.getItem('token');
+};
+
+// Função para verificar autenticação
+const checkAuth = async () => {
+    const token = getToken();
+    if (!token) {
+        console.error('Token não encontrado');
+        router.visit('/entrar');
+        return false;
+    }
+
+    try {
+        // Testa se o token é válido
+        const response = await axios.get('/api/auth/me', {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        console.log('Usuário autenticado:', response.data);
+        return true;
+    } catch (error) {
+        console.error('Token inválido ou expirado:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.visit('/entrar');
+        return false;
+    }
+};
+
 onMounted(async () => {
+    // Verifica autenticação ao carregar a página
+    const isAuth = await checkAuth();
+    if (!isAuth) return;
+
+    // Carrega categorias
     try {
         const response = await axios.get('/api/categories');
         categories.value = response.data;
@@ -34,24 +71,52 @@ const submitTopic = async () => {
     submitting.value = true;
     errors.value = {};
 
-    const token = localStorage.getItem('token');
+    const token = getToken();
+    
     if (!token) {
+        console.error('Token não encontrado no submit');
         router.visit('/entrar');
         return;
     }
 
+    console.log('Enviando tópico com token:', token.substring(0, 20) + '...');
+    console.log('Dados do formulário:', form);
+
     try {
-        await axios.post('/api/topics', form, {
+        const response = await axios.post('/api/topics', form, {
             headers: {
-                Authorization: `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }
         });
+        
+        console.log('Tópico criado com sucesso:', response.data);
         router.visit('/topicos');
     } catch (error) {
-        if (error.response && error.response.data) {
-            errors.value = error.response.data;
+        console.error('Erro completo:', error);
+        console.error('Response:', error.response);
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+        console.error('Headers:', error.response?.headers);
+
+        if (error.response?.status === 401) {
+            console.error('Erro 401 - Token inválido ou expirado');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            router.visit('/entrar');
+            return;
+        }
+
+        if (error.response?.data) {
+            // Laravel validation errors
+            if (error.response.data.errors) {
+                errors.value = error.response.data.errors;
+            } else if (error.response.data.message) {
+                alert(error.response.data.message);
+            }
         } else {
-            console.error('Error submitting topic:', error);
+            alert('Erro ao criar tópico. Tente novamente.');
         }
     } finally {
         submitting.value = false;
@@ -136,7 +201,7 @@ const submitTopic = async () => {
                             <p v-if="errors.content" class="text-red-500 text-xs">{{ errors.content[0] }}</p>
                         </div>
                         <div class="flex flex-col-reverse sm:flex-row items-center gap-4 pt-4 mt-2 border-t border-[#233648]">
-                            <button @click="router.visit('/topicos')" class="w-full sm:w-auto px-6 py-3 rounded-lg text-slate-300 font-bold hover:hover:bg-[#233648]-lighter transition-colors" type="button">
+                            <button @click="router.visit('/topicos')" class="w-full sm:w-auto px-6 py-3 rounded-lg text-slate-300 font-bold hover:bg-[#1a2834] transition-colors" type="button">
                                 Cancelar
                             </button>
                             <div class="flex-1"></div>
