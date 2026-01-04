@@ -29,7 +29,7 @@ import { Link } from '@inertiajs/vue3';
       <nav class="hidden lg:flex items-center gap-6 xl:gap-8 mx-4">
         <Link class="text-sm font-semibold text-primary" href="/">Início</Link>
         <Link class="text-sm font-medium text-text-secondary hover:text-primary transition-colors" href="/topicos">Tópicos</Link>
-        <Link class="text-sm font-medium text-text-secondary hover:text-primary transition-colors" href="#">Membros</Link>
+        <Link class="text-sm font-medium text-text-secondary hover:text-primary transition-colors" href="/membros">Membros</Link>
          <Link class="text-sm font-medium text-text-secondary hover:text-primary transition-colors" href="#">Regras</Link>
       </nav>
 
