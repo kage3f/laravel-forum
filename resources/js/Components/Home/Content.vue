@@ -79,7 +79,7 @@ const formatTime = (dateString) => {
                     <span class="text-xs font-medium text-text-secondary hidden sm:block">Filtrar por:</span>
                     <select 
                         v-model="selectedCategory"
-                        class="bg-transparent text-sm font-medium text-white border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                        class="text-sm font-medium text-white border-none focus:ring-0 cursor-pointer p-0 pr-6 bg-primary-dark"
                     >
                         <option value="">Todas as categorias</option>
                         <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>

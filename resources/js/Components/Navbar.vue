@@ -1,10 +1,12 @@
 <script setup>
 import { Link, usePage, router } from '@inertiajs/vue3';
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import axios from 'axios';
 
 const page = usePage();
 const user = ref(JSON.parse(localStorage.getItem('user')));
 const searchQuery = ref('');
+const isDropdownOpen = ref(false);
 
 const isActive = (path) => {
   return page.url === path || page.url.startsWith(path + '/');
@@ -16,11 +18,40 @@ const handleSearch = () => {
     }
 };
 
+const toggleDropdown = () => {
+    isDropdownOpen.value = !isDropdownOpen.value;
+};
+
+const closeDropdown = (e) => {
+    if (!e.target.closest('.user-dropdown-container')) {
+        isDropdownOpen.value = false;
+    }
+};
+
+const logout = async () => {
+    try {
+        await axios.post('/api/auth/logout');
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        user.value = null;
+        isDropdownOpen.value = false;
+        router.visit('/');
+    }
+};
+
 onMounted(() => {
+    window.addEventListener('click', closeDropdown);
     // Listen for storage changes to update user
     window.addEventListener('storage', () => {
         user.value = JSON.parse(localStorage.getItem('user'));
     });
+});
+
+onUnmounted(() => {
+    window.removeEventListener('click', closeDropdown);
 });
 </script>
 
@@ -83,16 +114,47 @@ onMounted(() => {
           <span>Novo Tópico</span>
         </Link>
 
-        <div v-if="user" class="flex items-center gap-3 ml-2">
+        <div v-if="user" class="flex items-center gap-3 ml-2 relative user-dropdown-container">
             <div class="flex items-center gap-1 border-l border-border-dark pl-3">
                 <button class="p-2 text-text-secondary hover:text-white">
                     <span class="material-symbols-outlined">notifications</span>
                 </button>
             </div>
 
-            <Link :href="`/user/${user.username}`" class="size-9 rounded-full bg-border-dark overflow-hidden border border-border-dark">
+            <button 
+                @click="toggleDropdown"
+                class="size-9 rounded-full bg-border-dark overflow-hidden border border-border-dark hover:border-primary transition-all"
+            >
                 <img :src="user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=0D8ABC&color=fff`" class="w-full h-full object-cover">
-            </Link>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div 
+                v-if="isDropdownOpen"
+                class="absolute right-0 top-full mt-2 w-48 bg-[#1e2c3b] border border-[#233648] rounded-xl shadow-2xl py-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200"
+            >
+                <div class="px-4 py-2 border-b border-[#233648] mb-1">
+                    <p class="text-white text-sm font-bold truncate">{{ user.name }}</p>
+                    <p class="text-text-secondary text-xs truncate">@{{ user.username }}</p>
+                </div>
+                
+                <Link 
+                    :href="`/user/${user.username}`"
+                    class="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-white hover:bg-[#233648] transition-colors"
+                    @click="isDropdownOpen = false"
+                >
+                    <span class="material-symbols-outlined text-[18px]">person</span>
+                    Meu Perfil
+                </Link>
+                
+                <button 
+                    @click="logout"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-[#233648] transition-colors"
+                >
+                    <span class="material-symbols-outlined text-[18px]">logout</span>
+                    Sair
+                </button>
+            </div>
         </div>
         <div v-else class="flex items-center gap-3 ml-2 border-l border-border-dark pl-3">
             <Link href="/entrar" class="text-sm font-bold text-white hover:text-primary transition-colors">Entrar</Link>
