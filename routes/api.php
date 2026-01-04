@@ -18,10 +18,16 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('stats', [TopicController::class, 'stats']);
 
 Route::apiResource('topics', TopicController::class)->except(['store', 'update', 'destroy']);
+Route::get('topics/{uuid}/comments', [\App\Http\Controllers\CommentController::class, 'index']);
+
 Route::group(['middleware' => 'auth:api'], function () {
     Route::post('topics', [TopicController::class, 'store']);
     Route::put('topics/{uuid}', [TopicController::class, 'update']);
     Route::delete('topics/{uuid}', [TopicController::class, 'destroy']);
+    Route::post('topics/{uuid}/comments', [\App\Http\Controllers\CommentController::class, 'store']);
+    Route::get('test-auth', function () {
+        return response()->json(auth('api')->user());
+    });
 });
 
 Route::get('users', [UserController::class, 'index']);

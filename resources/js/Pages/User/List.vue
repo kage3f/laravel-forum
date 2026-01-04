@@ -15,7 +15,7 @@ const loading = ref(true);
 onMounted(async () => {
     try {
         const response = await axios.get('/api/users');
-        users.value = response.data;
+        users.value = response.data.data || [];
     } catch (error) {
         console.error('Error fetching users:', error);
     } finally {

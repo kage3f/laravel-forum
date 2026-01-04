@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 import axios from 'axios';
@@ -9,28 +9,69 @@ const props = defineProps({
 });
 
 const topic = ref(null);
+const comments = ref([]);
 const loading = ref(true);
+const submitting = ref(false);
 const breadcrumbs = ref([
   { label: 'Tópicos', link: '/topicos' },
 ]);
 
-onMounted(async () => {
+const commentForm = reactive({
+    content: ''
+});
+
+const fetchData = async () => {
     try {
-        const response = await axios.get(`/api/topics/${props.uuid}`);
-        topic.value = response.data;
-        breadcrumbs.value.push({ label: topic.value.category?.name || 'Tópico' });
+        const [topicRes, commentsRes] = await Promise.all([
+            axios.get(`/api/topics/${props.uuid}`),
+            axios.get(`/api/topics/${props.uuid}/comments`)
+        ]);
+        topic.value = topicRes.data;
+        comments.value = commentsRes.data;
+        
+        if (breadcrumbs.value.length === 1) {
+            breadcrumbs.value.push({ label: topic.value.category?.name || 'Tópico' });
+        }
     } catch (error) {
-        console.error('Error fetching topic:', error);
+        console.error('Error fetching topic data:', error);
     } finally {
         loading.value = false;
     }
-});
+};
+
+onMounted(fetchData);
+
+const submitComment = async () => {
+    if (!commentForm.content.trim()) return;
+    
+    submitting.value = true;
+    const token = localStorage.getItem('token');
+    
+    try {
+        const response = await axios.post(`/api/topics/${props.uuid}/comments`, commentForm, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        comments.value.unshift(response.data);
+        commentForm.content = '';
+    } catch (error) {
+        console.error('Error posting comment:', error);
+        if (error.response?.status === 401) {
+            alert('Você precisa estar logado para comentar.');
+        }
+    } finally {
+        submitting.value = false;
+    }
+};
 
 const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: 'long',
-        year: 'numeric'
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
     });
 };
 </script>
@@ -53,13 +94,8 @@ const formatDate = (dateString) => {
                             </span>
                             <span class="w-1 h-1 rounded-full bg-gray-400"></span>
                             <span class="flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[18px]">visibility</span>
-                                0 visualizações
-                            </span>
-                            <span class="w-1 h-1 rounded-full bg-gray-400"></span>
-                            <span class="flex items-center gap-1">
                                 <span class="material-symbols-outlined text-[18px]">chat_bubble</span>
-                                0 respostas
+                                {{ comments.length }} respostas
                             </span>
                         </div>
                     </div>
@@ -67,6 +103,7 @@ const formatDate = (dateString) => {
             </div>
 
             <div class="flex flex-col gap-6 mt-6">
+                <!-- Original Post -->
                 <article class="flex flex-col md:flex-row gap-4 p-5 md:p-6 rounded-xl bg-[#1c2631] shadow-sm border border-[#233648] relative overflow-hidden group">
                     <div class="absolute top-0 right-0 p-0">
                         <div class="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">ORIGINAL</div>
@@ -77,7 +114,6 @@ const formatDate = (dateString) => {
                                 class="bg-center bg-no-repeat bg-cover rounded-full w-12 h-12 md:w-16 md:h-16 ring-2 ring-primary/20" 
                                 :style="{ backgroundImage: `url(${topic.user?.avatar || `https://ui-avatars.com/api/?name=${topic.user?.name}&background=0D8ABC&color=fff`})` }"
                             ></div>
-                            <div class="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 md:w-4 md:h-4 rounded-full border-2 border-[#1c2631]"></div>
                         </div>
                         <div class="flex flex-col">
                             <h3 class="font-bold text-white text-base md:text-lg">{{ topic.user?.name }}</h3>
@@ -87,39 +123,59 @@ const formatDate = (dateString) => {
                             </div>
                         </div>
                     </div>
-                    <!-- Content -->
                     <div class="flex flex-1 flex-col gap-4 min-w-0 justify-between">
                         <div class="prose prose-invert max-w-none text-gray-200 text-base leading-relaxed">
                             <p>{{ topic.content }}</p>
                         </div>
-                        <!-- Post Actions -->
-                        <div class="mt-4 flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[#233648]/50">
-                            <div class="flex items-center gap-1">
-                                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:text-white transition-colors group/btn">
-                                    <span class="material-symbols-outlined text-[20px] group-hover/btn:text-primary">thumb_up</span>
-                                    <span class="text-sm font-medium">0</span>
-                                </button>
+                    </div>
+                </article>
+
+                <!-- Comments -->
+                <article 
+                    v-for="comment in comments" :key="comment.id"
+                    class="flex flex-col md:flex-row gap-4 p-5 md:p-6 rounded-xl bg-[#1c2631] shadow-sm border border-[#233648]"
+                >
+                    <div class="flex md:flex-col items-center md:items-start gap-3 md:w-48 shrink-0">
+                        <div 
+                            class="bg-center bg-no-repeat bg-cover rounded-full w-10 h-10 md:w-14 md:h-14 ring-1 ring-gray-700" 
+                            :style="{ backgroundImage: `url(${comment.user?.avatar || `https://ui-avatars.com/api/?name=${comment.user?.name}&background=0D8ABC&color=fff`})` }"
+                        ></div>
+                        <div class="flex flex-col">
+                            <h3 class="font-bold text-white text-sm md:text-base">{{ comment.user?.name }}</h3>
+                            <div class="text-[10px] md:text-xs text-gray-400">
+                                <span>@{{ comment.user?.username }}</span>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors">
-                                    <span class="material-symbols-outlined text-[20px]">reply</span>
-                                    <span class="text-sm font-bold">Responder</span>
-                                </button>
-                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-1 flex-col gap-3 min-w-0 justify-between">
+                        <div class="prose prose-invert max-w-none text-gray-300 text-sm md:text-base">
+                            <p>{{ comment.content }}</p>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            {{ formatDate(comment.created_at) }}
                         </div>
                     </div>
                 </article>
             </div>
 
+            <!-- Reply Form -->
             <div class="mt-12 rounded-xl bg-[#1c2631] shadow-sm border border-[#233648] overflow-hidden">
                 <div class="bg-[#233648]/30 px-4 py-3 border-b border-[#233648] flex items-center justify-between">
                     <span class="text-sm font-bold text-white">Responder ao tópico</span>
                 </div>
                 <div class="p-4">
-                    <textarea class="w-full min-h-[160px] bg-transparent border-0 focus:ring-0 text-white placeholder:text-[#92adc9]/50 resize-y p-0" placeholder="Escreva sua resposta aqui... Lembre-se de ser gentil e construtivo."></textarea>
+                    <textarea 
+                        v-model="commentForm.content"
+                        class="w-full min-h-[160px] bg-transparent border-0 focus:ring-0 text-white placeholder:text-[#92adc9]/50 resize-y p-0" 
+                        placeholder="Escreva sua resposta aqui... Lembre-se de ser gentil e construtivo."
+                    ></textarea>
                     <div class="flex items-center justify-between mt-4">
-                        <button class="flex items-center justify-center rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-blue-600 hover:shadow-blue-500/30 transition-all active:scale-95">
-                            Postar Resposta
+                        <button 
+                            @click="submitComment"
+                            :disabled="submitting"
+                            class="flex items-center justify-center rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-blue-600 hover:shadow-blue-500/30 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            {{ submitting ? 'Postando...' : 'Postar Resposta' }}
                         </button>
                     </div>
                 </div>

@@ -19,7 +19,7 @@ onMounted(async () => {
             axios.get('/api/topics'),
             axios.get('/api/categories')
         ]);
-        topics.value = topicsRes.data.data;
+        topics.value = topicsRes.data.data || [];
         categories.value = categoriesRes.data;
     } catch (error) {
         console.error('Error fetching data:', error);

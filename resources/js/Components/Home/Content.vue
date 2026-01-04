@@ -17,7 +17,7 @@ const fetchData = async () => {
             axios.get('/api/stats'),
             axios.get('/api/categories')
         ]);
-        topics.value = topicsRes.data.data;
+        topics.value = topicsRes.data.data || [];
         stats.value = statsRes.data;
         categories.value = categoriesRes.data;
     } catch (error) {

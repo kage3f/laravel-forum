@@ -28,12 +28,13 @@ onMounted(async () => {
         
         // Find category by slug (simulated)
         const cat = categoriesRes.data.find(c => c.slug === props.slug);
+        const allTopics = topicsRes.data.data || [];
         if (cat) {
             category.value = cat;
-            topics.value = topicsRes.data.data.filter(t => t.category_id === cat.id);
+            topics.value = allTopics.filter(t => t.category_id === cat.id);
             breadcrumbs.value.push({ label: cat.name });
         } else {
-            topics.value = topicsRes.data.data;
+            topics.value = allTopics;
         }
     } catch (error) {
         console.error('Error fetching data:', error);
