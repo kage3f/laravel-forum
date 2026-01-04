@@ -1,6 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Breadcrumbs from '../Components/Breadcrumbs.vue';
+import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 
 const breadcrumbs = [
   { label: 'Membros', link: '/membros' },

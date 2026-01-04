@@ -23,8 +23,11 @@
   --background-base-card: #233648;
 }
 
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: none;
+}
+
 @layer base {
-  /* Se você quiser garantir que o box-sizing seja sempre border-box */
   *, ::before, ::after {
     box-sizing: border-box;
   }
